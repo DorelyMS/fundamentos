@@ -1,0 +1,184 @@
+---
+title: "fundamentos-tarea01_dorely"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Fundamentos de Estadística
+# Tarea 01: Dorely Morales Santiago
+
+Primero Cargamos los paquetes
+
+```{r}
+library(tidyverse)
+```
+
+Leemos los datos y recodificamos nombres y niveles a español
+
+```{r}
+tips <- read_csv("tips.csv")
+glimpse(tips)
+
+propinas <- tips %>% 
+  rename(cuenta_total = total_bill, 
+         propina = tip, sexo = sex, 
+         fumador = smoker,
+         dia = day, momento = time, 
+         num_personas = size) %>% 
+  mutate(sexo = recode(sexo, Female = "Mujer", Male = "Hombre"), 
+         fumador = recode(fumador, No = "No", Si = "Si"),
+         dia = recode(dia, Sun = "Dom", Sat = "Sab", Thur = "Jue", Fri = "Vie"),
+         momento = recode(momento, Dinner = "Cena", Lunch = "Comida")) %>% 
+  select(-sexo) %>% 
+  mutate(dia  = fct_relevel(dia, c("Jue", "Vie", "Sab", "Dom")))
+propinas
+```
+
+# Ejercicios
+
+## 1. Calcula percentiles de la variable propina junto con mínimo y máximo
+
+```{r}
+cuantiles <- quantile(propinas$propina, probs = seq(0,1,.1))
+round(cuantiles,2)
+```
+## 2. Haz una gráfica de cuantiles de la variable propina 
+
+```{r}
+#Primero ordenamos con rank las cuentas con menor propina
+propinas <- propinas %>% 
+  mutate(orden_propina = rank(propina, ties.method = "first"), 
+         f = (orden_propina-0.5) / n()) 
+
+## Aquí el código
+g_cuantiles <- ggplot(propinas, aes(x = f, y = propina)) + 
+  labs(subtitle = "Gráfica de cuantiles: Propinas") +
+  geom_hline(yintercept = cuantiles[1], colour = "gray") +
+  geom_hline(yintercept = cuantiles[2], colour = "gray") + 
+  geom_hline(yintercept = cuantiles[3], colour = "gray") +
+  geom_hline(yintercept = cuantiles[4], colour = "gray") +
+  geom_hline(yintercept = cuantiles[5], colour = "red") +
+  geom_hline(yintercept = cuantiles[6], colour = "gray") +
+  geom_hline(yintercept = cuantiles[7], colour = "gray") +
+  geom_hline(yintercept = cuantiles[8], colour = "gray") +
+  geom_hline(yintercept = cuantiles[9], colour = "gray") +
+  geom_hline(yintercept = cuantiles[10], colour = "gray") +
+  geom_point(alpha = 0.5) + geom_line() 
+g_cuantiles
+```
+## 3. Haz un histograma de la variable propinas. Ajusta distintos anchos de banda
+
+```{r}
+g_hist1 <- ggplot(propinas, aes(x=propina)) +
+  geom_histogram(color="darkblue", fill="lightblue",binwidth = 0.2)+
+  geom_vline(aes(xintercept=median(propina)),
+             color="blue", linetype="dashed", size=1) +
+  labs(title="Histograma de propinas con mediana")
+g_hist1
+
+g_hist2 <- ggplot(propinas, aes(x=propina)) +
+  geom_histogram(color="darkgreen", fill="lightgreen",binwidth = 1)+
+  geom_vline(aes(xintercept=median(propina)),
+             color="black", linetype="dashed", size=1) +
+  labs(title="Histograma de propinas con mediana")
+g_hist2
+
+g_hist3 <- ggplot(propinas, aes(x=propina)) +
+  geom_histogram(color="yellow", fill="lightyellow",binwidth = 0.8)+
+  geom_vline(aes(xintercept=median(propina)),
+             color="gray", linetype="dashed", size=1) +
+  labs(title="Histograma de propinas con mediana")
+g_hist3
+
+g_hist4 <- ggplot(propinas, aes(x=propina)) +
+  geom_histogram(color="gray", fill="lightblue",binwidth = 0.6)+
+  geom_vline(aes(xintercept=median(propina)),
+             color="blue", linetype="dashed", size=1) +
+  labs(title="Histograma de propinas con mediana")
+g_hist4
+```
+## 4. Haz una gráfica de cuenta total contra propina
+
+```{r}
+g_ctaXprop<-ggplot(propinas,aes(x = cuenta_total, y = propina)) + 
+    geom_point() +
+    geom_smooth(method = "lm")
+g_ctaXprop
+```
+## 5 Calcula propina en porcentaje de la cuenta total y Calcula algunos cuantiles de propina en porcentaje.
+
+```{r}
+propinas <- propinas %>% 
+mutate(pct_propina = propina/cuenta_total)
+cuantiles_pctpropina<-quantile(propinas$pct_propina, probs = seq(0,1,.1))*100
+round(cuantiles_pctpropina,2)
+```
+## 6. Haz un histograma de la propina en porcentaje. Prueba con distintos anchos de banda. 
+
+
+```{r}
+g_hist1_pctprop <- ggplot(propinas, aes(x=pct_propina)) +
+  geom_histogram(color="darkblue", fill="lightblue",binwidth = 0.1)+
+  geom_vline(aes(xintercept=median(pct_propina)),
+             color="blue", linetype="dashed", size=1) +
+  labs(title="Histograma de propina en porcentaje con su mediana")
+g_hist1_pctprop
+
+g_hist2_pctprop <- ggplot(propinas, aes(x=pct_propina)) +
+  geom_histogram(color="darkgreen", fill="lightgreen",binwidth = 0.05)+
+  geom_vline(aes(xintercept=median(pct_propina)),
+             color="black", linetype="dashed", size=1) +
+  labs(title="Histograma de propina en porcentaje con su mediana")
+g_hist2_pctprop
+
+g_hist3_pctprop <- ggplot(propinas, aes(x=pct_propina)) +
+  geom_histogram(color="yellow", fill="lightyellow",binwidth = 0.01)+
+  geom_vline(aes(xintercept=median(pct_propina)),
+             color="gray", linetype="dashed", size=1) +
+  labs(title="Histograma de propina en porcentaje con su mediana")
+g_hist3_pctprop
+
+g_hist4_pctprop <- ggplot(propinas, aes(x=pct_propina)) +
+  geom_histogram(color="gray", fill="lightblue",binwidth = 0.03)+
+  geom_vline(aes(xintercept=median(pct_propina)),
+             color="blue", linetype="dashed", size=1) +
+  labs(title="Histograma de propina en porcentaje con su mediana")
+g_hist4_pctprop
+```
+## 7. Describe la distribución de propina en pct. ¿Hay datos atípicos?
+
+El porcentaje de propinas tiene la mayoría de sus observaciones alrededor de su mediana (15.47%), esto probablemente se debe a que en EU la propina obligatoria es del 15%. También encontramos un valle importante en las propinas con porcentaje del 20% y esto probablemente se debe al redondeo de cifras en los cargos de servicio. Además, notamos que las propinas superiores al 25% de la cuenta son atípicas, así como las menores al 5%
+
+```{r}
+summary(propinas$pct_propina)
+```
+## 8. Filtra los casos con porcentaje de propina muy altos. ¿Qué tipos de cuentas son? ¿Son cuentas grandes o chicas?
+
+Las 3 cuentas cuyo porcentaje de propina son los más altos están dentro de las que tienen el saldo total más chico (percentil 10) probablemente por ello aunque la propina no sea de muchos dólares como porcentaje del total de la cuenta pareciera muy grande.
+
+```{r}
+filter(propinas,pct_propina>0.3)
+round(quantile(propinas$cuenta_total, probs = seq(0,1,.1)),2)
+#|pct_propina<=0.05 #hay un valor atípico con propina del 3%
+```
+
+## 9. Haz un diagrama de caja y brazos para propina en dólares dependiendo del momento (comida o cena). ¿Cuál parece más grande? ¿Por qué? Haz otras gráficas si es necesario.
+
+En general, las propinas de la cena aunque tienen una mayor dispersión, suelen ser mayores que las de la comida. Esto lo podemos ver porque la mediana de la propina en la cena está muy por encima de la de las comidas cuya mediana está casi en el mismo valor que el primer cuantil. Además, el tercer cuantil también mantiene una diferencia clara siendo  la propina de la cena mayor al de la comida.
+
+```{r}
+g_boxplot<-ggplot(propinas,aes(y=propina, x=momento, color=momento))+
+  geom_boxplot() +
+  #geom_jitter() +
+  ggtitle("Diagrama de caja y brazos para propina en dólares")
+g_boxplot
+```
+
+```{r}
+g_boxplot<-ggplot(propinas,aes(y=propina, x=momento, color=momento))+
+  geom_violin() +
+  geom_jitter() +
+  ggtitle("Diagrama de violin para propina en dólares")
+g_boxplot
+```

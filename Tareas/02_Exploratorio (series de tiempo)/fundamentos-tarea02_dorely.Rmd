@@ -1,0 +1,179 @@
+---
+title: "fundamentos-tarea02"
+author: "Dorely Morales Santiago"
+output: html_document
+---
+
+```{r, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+
+# cargamos paquetes
+library(tidyverse)
+library(patchwork)
+```
+
+
+## Series de tiempo
+Consideramos la ventas semanales de un producto a lo largo de 5 años, 
+transformaremos la variable de ventas utilizando el logaritmo. 
+
+1. Describe que observas en la gráfica.
+
+Las ventas parecen tener un comportamiento estacional a lo largo de los años, sobre todo durante los últimos cuatro el comportamiento es más parecido. En el primer año de datos, el nivel de ventas está muy por debajo del resto. A lo largo del tiempo, se aprecia una tendencia positiva en las ventas.
+
+```{r, fig.width=5.5, fig.height = 3}
+ventas <- read_csv("ventas_semanal.csv")
+head(ventas)
+glimpse(ventas)
+ggplot(ventas, aes(x = period, y = log(sales.kg))) + 
+  geom_line(size = 0.3)
+```
+
+Intentaremos usar suavizamiento para capturar los distintos tipos de variación
+que observamos en la serie. 
+
+2. Utiliza un suavizador *loess* para capturar la tendencia de la serie.
+
+```{r, fig.width=5.5, fig.height = 3}
+ggplot(ventas, aes(x = period, y = log(sales.kg))) +
+  geom_line(size = 0.3) +
+  geom_smooth(method = "loess", span=0.7 , degree = 1, se = FALSE, size = 1, 
+              #rellenamos span incrementando su valor hasta tener un suavizamiento apropiado
+    color = "red")
+
+fit_trend <- loess(log(sales.kg) ~ period, ventas, span = 0.7, degree = 1)
+```
+Aquí comprobamos que eliminamos tendencia:
+
+```{r}
+ggplot(ventas, aes(x = period, y = fit_trend$residuals)) +
+  geom_line(size = 0.3) + labs(y="residuales suavizamiento tendencia")
+```
+
+3. Ahora calcula los residuales de este ajuste y descríbelos
+mediante un suavizamiento más fino. Verifica que se ha estimado la mayor
+parte de la tendencia, e intenta capturar la variación estacional de los 
+residuales.
+
+```{r}
+ggplot(ventas, aes(x = period, y = fit_trend$residuals)) + #+ #rellena res.trend.1
+  geom_line(size = 0.3) +
+  labs(y="residuales suavizamiento estacionalidad") +
+  geom_smooth(method = "loess", span=0.2 , degree = 2, se = FALSE, size = 1, 
+              #rellenamos span reduciendo hasta tener una mejor captura de la variación estacional
+    color = "blue")  
+
+fit_season <- loess(fit_trend$residuals ~ period, ventas, span = 0.2, degree = 2)
+```
+
+4. Grafica los residuales obtenidos después de ajustar el componente 
+estacional para estudiar la componente de mayor frecuencia.
+
+```{r, fig.width=5.5, fig.height = 3}
+ggplot(ventas, aes(x = period, y = fit_season$residuals)) + #+ #rellena res.est1.1
+  geom_line(size = 0.3) +
+  labs(y="residuales componente más frecuente",title = "Residuales")+
+  geom_smooth(method = "loess", span=0.06 , degree = 1, se = FALSE, size = 1, 
+    color = "green")  
+
+fit_season_high <- loess(fit_season$residuals ~ period, ventas, span = 0.06, degree = 1)
+```
+
+5. **Extra opcional**. Ahora que tenemos nuestra primera estimación de cada una de las componentes, podemos regresar a hacer una mejor estimación de la tendencia. 
+La ventaja de volver es que ahora podemos suavizar más sin que en nuestra 
+muestra compita tanto la variación estacional. Por tanto puedes suavizar un 
+poco menos.
+
+Probamos bajando el valor de span (de 0.7 a 0.4) para suavizar un poco menos
+
+```{r}
+ggplot(ventas, aes(x = period, y = log(sales.kg))) +
+  geom_line(size = 0.3) +
+  geom_smooth(method = "loess", span=0.4 , degree = 1, se = FALSE, size = 1, 
+              #rellenamos span incrementando su valor hasta tener un suavizamiento apropiado
+    color = "red")
+
+fit_trend_2 <- loess(log(sales.kg) ~ period, ventas, span = 0.4, degree = 1)
+
+ggplot(ventas, aes(x = period, y = fit_trend_2$residuals)) +
+  geom_line(size = 0.3) + labs(y="residuales suavizamiento tendencia")
+```
+
+```{r}
+ggplot(ventas, aes(x = period, y = fit_trend_2$residuals)) + #+ #rellena res.trend.1
+  geom_line(size = 0.3) +
+  labs(y="residuales suavizamiento estacionalidad") +
+  geom_smooth(method = "loess", span=0.2 , degree = 2, se = FALSE, size = 1, 
+              #rellenamos span reduciendo hasta tener una mejor captura de la variación estacional
+    color = "blue")  
+
+fit_season_2 <- loess(fit_trend_2$residuals ~ period, ventas, span = 0.2, degree = 2)
+```
+
+```{r}
+ggplot(ventas, aes(x = period, y = fit_season_2$residuals)) + #+ #rellena res.est1.1
+  geom_line(size = 0.3) +
+  labs(y="residuales componente más frecuente",title = "Residuales")+
+  geom_smooth(method = "loess", span=0.06 , degree = 1, se = FALSE, size = 1, 
+    color = "green")  
+
+fit_season_high_2 <- loess(fit_season$residuals ~ period, ventas, span = 0.06, degree = 1)
+```
+
+Y luego comparamos residuales de ambas estimaciones:
+
+```{r}
+res_est1<-ggplot(ventas, aes(x = period, y = fit_season_high$residuals)) +
+  geom_line(size = 0.3)+
+  geom_smooth(method = "loess", span = 0.06, color="orange",
+                method.args = list(degree=1, family = "symmetric"))
+res_est2<-ggplot(ventas, aes(x = period, y = fit_season_high_2$residuals))+
+  geom_line(size = 0.3)+
+  geom_smooth(method = "loess", span = 0.06, color="orange",
+                method.args = list(degree=1, family = "symmetric"))
+res_est1+res_est2
+```
+
+
+6. Visualiza el ajuste, genera una gráfica de páneles, en cada uno muestra
+una componente de la serie de tiempo y los residuales.
+
+Primero guardamos nuestras estimaciones en un dataset
+
+```{r}
+estimaciones<-ventas  %>%
+  mutate(logventas=log(ventas$sales.kg),tendencia=fit_trend_2$fitted,estacionalidad=fit_season_2$fitted,masfrecuente=fit_season_high_2$fitted,residuales=fit_season_high_2$residuals)
+
+head(estimaciones)
+```
+
+```{r}
+desc_serietiempo<- estimaciones %>%
+  select(period,tendencia,estacionalidad,masfrecuente,residuales) %>%
+  mutate(ajuste_centrado = tendencia - mean(tendencia)) %>%
+  gather(componente, valor, estacionalidad:ajuste_centrado) %>%
+  mutate(componente=recode(componente,ajuste_centrado="Tendencia",estacionalidad="Estacionalidad",masfrecuente="Componente Más Frecuente",
+                           residuales="Residual")) %>%
+  mutate(componente = fct_relevel(componente, "Tendencia", "Estacionalidad","Componente Más Frecuente", "Residual"))
+#summary(desc_serietiempo)
+
+ggplot(desc_serietiempo, aes(x = period, y = valor,colour = componente)) +
+    facet_wrap(~ componente,  ncol = 1) +
+    geom_point(size=0.5) 
+```
+
+7. Genera una gráfica de cuantiles para los residuales.
+
+```{r}
+ggplot(ventas, aes(sample = fit_trend_2$residuals)) +
+  geom_qq(distribution = stats::qunif) +
+  labs(y="Residuales",x="",title="Gráfica de cuantiles para Residuales de Tendencia")
+
+ggplot(ventas, aes(sample = fit_season_2$residuals)) +
+  geom_qq(distribution = stats::qunif) +
+  labs(y="Residuales",x="",title="Gráfica de cuantiles para Residuales de Componente Estacional")
+
+ggplot(ventas, aes(sample = fit_season_high_2$residuals)) +
+  geom_qq(distribution = stats::qunif) +
+  labs(y="Residuales",x="",title="Gráfica de cuantiles para Residuales de Componente Más Frecuente")
+```
